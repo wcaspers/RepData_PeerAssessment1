@@ -5,21 +5,166 @@ output:
     keep_md: true
 ---
 
-
 ## Loading and preprocessing the data
+```r
+library(dplyr)
+library(chron)
+library(ggplot2)
+
+if(!file.exists('activity.csv')){
+  unzip("zipfile.zip", files = NULL, list = FALSE, overwrite = TRUE,
+        junkpaths = FALSE, exdir = ".", unzip = "internal",
+        setTimes = FALSE)
+}
+activity <-read.csv("./activity.csv",header=TRUE)
+```
+##### 2. Process/transform the data (if necessary) into a format suitable for your analysis
+
+```r
+by_day <- group_by(activity, date)
 
 
+```
+
+-----
 
 ## What is mean total number of steps taken per day?
 
+```r
+act_sum_steps <- summarize(by_day, sum_steps = sum(steps))
 
+```
+
+##### 1. Make a histogram of the total number of steps taken each day
+
+```r
+
+hist(act_sum_steps$sum_steps, breaks=20,  main="Histogram of daily steps", 
+     xlab= "Total number of steps taken each day", xlim = c(0,25000), ylim = c(0,12))
+     
+```
+
+![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5.png) 
+
+##### 2. Calculate and report the mean and median total number of steps taken per day
+
+```r
+mean(act_sum_steps$sum_steps, na.rm=TRUE)
+median(act_sum_steps$sum_steps, na.rm=TRUE)
+```
+* Mean:10766.19
+* Median:  10765
+
+-----
 
 ## What is the average daily activity pattern?
 
+```r
+averageStepsPerTimeBlock <- aggregate(x=list(meanSteps=activityData$steps), by=list(interval=activityData$interval), FUN=mean, na.rm=TRUE)
+```
 
+##### 1. Make a time series plot
+
+```r
+by_int <- group_by(activity, interval)
+act_avg_steps  <- summarize(by_int, avg_steps = mean(steps,na.rm=TRUE)) 
+plot( act_avg_steps$interval, act_avg_steps$avg_steps,type = "l", 
+            xlab="5-minute intervals during the day",
+            ylab ="average number of steps taken",
+            main="Number of Steps per day (averaged over days) ")
+
+```
+
+![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8.png) 
+
+##### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```r
+max_avg_steps  <- max(act_avg_steps$avg_steps))
+act_avg_steps[act_avg_steps$avg_steps == max(act_avg_steps$avg_steps),]
+```
+
+* Most Steps at Interval: 835
+
+----
 
 ## Imputing missing values
+##### 1. Calculate and report the total number of missing values in the dataset 
+
+```r
+Missing_value <- sum(is.na(activity$steps))
+Missing_value") +
+  theme_bw()
+```
+
+* Number of missing values: 2304
+
+##### 2. Devise a strategy for filling in all of the missing values in the dataset.
+Missing values are replaced by the average steps of its interval value
+
+##### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```r
+index1  <- which(!is.na(activity$steps))
+index2  <- which(is.na(activity$steps))
+activity_new1 <- activity[index1,]
+activity_new2 <- activity[index2,]
+activity_new2 <- merge(activity_new2,act_avg_steps, by="interval")
+activity_new2 <- activity_new2[,c(1,3,4)]
+names(activity_new2)[3] <- c("steps")
+activity_new   <- rbind(activity_new1, activity_new2)
+```
 
 
+##### 4. Make a histogram of the total number of steps taken each day 
+
+```r
+by_day_new <- group_by(activity_new, date)
+act_sum_steps <- summarize(by_day_new, sum_steps = sum(steps))
+hist(act_sum_steps$sum_steps, breaks=20,  main="Histogram of daily steps-missing values filled", 
+     xlab= "Total number of steps taken each day", xlim = c(0,25000), ylim = c(0,22))
+```
+
+![plot of chunk unnamed-chunk-12](figure/unnamed-chunk-12.png) 
+
+##### ... and Calculate and report the mean and median total number of steps taken per day. 
+
+```r
+mean(act_sum_steps$sum_steps, na.rm=TRUE)
+median(act_sum_steps$sum_steps, na.rm=TRUE)
+```
+* Mean:10766.19
+* Median: 10766.19
+
+* Replacing the missing values by its intervall values reduces the variance and centers the 
+* data set around its mean. 
+
+----
 
 ## Are there differences in activity patterns between weekdays and weekends?
+##### 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+
+```r
+activity_new   <- cbind(activity_new, is.weekend(activity_new$date))
+names(activity_new)[4] <- c("weekend")
+
+by_int <- group_by(activity_new, interval, weekend)
+act_avg_steps  <- summarize(by_int, avg_steps = mean(steps,na.rm=TRUE))
+```
+
+##### 2. Make a panel plot containing a time series plot
+
+
+```r
+
+  ggplot(act_avg_steps, aes(x=interval, y=avg_steps)) + 
+  geom_line(color="black") + 
+  facet_wrap(~ weekend, nrow=2, ncol=1) +
+  labs(x="5-minute intervals during the day, Weekend = TRUE / False",
+   y="average number of steps taken") +
+   theme_bw()
+```
+
+![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15.png) 
+
